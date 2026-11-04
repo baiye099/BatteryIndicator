@@ -4,7 +4,9 @@
 
 Windows 10/11 x64 的轻量外设电量托盘程序，使用 C 和 Windows 自带 API。
 
-当前版本：**v0.1.0**。版本号见 [VERSION](VERSION)，版本变更见 [CHANGELOG.md](CHANGELOG.md)。
+当前版本：**v0.2.0**。版本号见 [VERSION](VERSION)，版本变更见 [CHANGELOG.md](CHANGELOG.md)，本版功能、验证范围和更新方式见 [v0.2.0 版本说明](RELEASE_NOTES_v0.2.0.md)。
+
+自动扫描设备并选择内置电量协议，用户无需下载或上传配置文件。实现与支持范围见 [统一自动识别说明](AUTO_DETECTION.md)。
 
 完整开发过程、两种设备协议、低占用设计、图标和字体实现、构建测试及目录清理说明，见 [项目实现全流程](BatteryIndicator_项目实现全流程.md)。
 
@@ -38,7 +40,7 @@ Windows 10/11 x64 的轻量外设电量托盘程序，使用 C 和 Windows 自�
 
 读数会随使用变化，以上不是固定值。高斯充电状态尚未验证，当前仅显示其百分比。
 
-自动枚举设备，但 **2.4G 没有统一电量协议，无法保证所有品牌和型号都能读取**。当前实现罗技 HID++ 2.0 的 `0x1004` / `0x1000` 电量特征、高斯上述型号的原生电量命令，以及标准 HID Battery Strength 的 Feature 字段。其他罗技型号和标准 HID 通道未经本机硬件验证。未实现 HID++ 1.0、电压推算、其他品牌专有协议、通用蓝牙扫描。未适配设备可能不出现在托盘；名称含 2.4G 或 GANSS 的设备可显示未知电量图标。相同型号的多把高斯键盘目前合并显示。
+自动枚举设备，内置 GANSS、Logitech HID++、部分 Razer 鼠标、HyperX Cloud II Wireless、SteelSeries Nova 7 系列和标准 HID Battery Strength Feature 读取器。新增的雷蛇、HyperX、SteelSeries 及标准 HID 分支已做解析测试，但尚未在本机用对应硬件验证；已实测的仍是上表两台设备。**没有统一电量协议，无法保证所有 2.4G 型号都能读取**。未实现 HID++ 1.0、电压推算、通用蓝牙扫描。未适配设备可能不出现在托盘；名称含 2.4G 或 GANSS 的设备可显示未知电量图标。相同型号的多把高斯键盘目前合并显示。
 
 高斯只在 VID/PID、型号字符串和 HID collection 都匹配时发送已定位的电量查询，不按共享的 Apple VID/PID 盲发命令。不改变按键、灯光、宏、配对或固件。设备可能因休眠或官方软件独占接收器而暂时无法读取。
 
@@ -70,6 +72,8 @@ bin\BatteryIndicator.exe --probe
 退出后查看 `bin/diagnostics.txt`。报告只列 HID 名称、VID/PID、collection、报文长度和已适配协议的电量响应，不记录键盘按键。平时运行不写日志。
 
 运行中的程序还支持 `--refresh` 请求立即刷新，以及 `--status` 把当前托盘读数和图标注册结果写入 `bin/status.txt`；状态文件里的 `-1%` 表示当前没有有效读数。
+
+`bin\BatteryIndicator.exe --supported` 将内置协议范围输出到 `bin/supported.txt`。没有协议导入、外部插件或联网下载步骤。
 
 ## 参考来源
 

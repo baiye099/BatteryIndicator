@@ -1,6 +1,8 @@
 # Third-party notices
 
-Logitech HID++ protocol handling was informed by Halo Battery's Logitech provider.
+Logitech HID++, Razer, HyperX Cloud II Wireless and SteelSeries Nova 7 protocol
+handling was informed by Halo Battery's providers/logitech.py, providers/razer.py,
+providers/hyperx.py and providers/steelseries.py (read on 2026-11-04).
 
 https://github.com/HeyOkay/HaloBattery
 

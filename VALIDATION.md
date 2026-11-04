@@ -2,7 +2,20 @@
 
 日期：2026-11-04（Asia/Shanghai）。Windows x64，Visual Studio 2022 / MSVC 14.39，Windows SDK 10.0.19041。
 
-亮粉色更新（当前）：普通电量数字为 `#FF2D95`，保留低电量红色、充电绿色和未知灰色。编译及全部测试通过，已重启并更新便携包。当前 EXE SHA-256：`0157AA4DDAAE0AB51FDE1FF3DD26CAF52CA547A6F9D010B60CE5FBD2720EC690`。
+统一自动识别 v0.2.0（当前）：
+
+- 编译无警告；协议、统一解析与分流测试、原有 168 种图标组合测试通过；`git diff --check`、文档链接及代码块检查通过。
+- 新增 `src/protocols.h`：6 个内置读取器、共用 PacketRule 报文引擎、精确设备匹配、Container ID 去重。新增 Razer、HyperX、Nova7 分支只有协议/解析测试，没有本机硬件。
+- 硬件回归：统一入口读取罗技 PRO X Wireless 39%；用户按 Shift 唤醒高斯后读取 100%，状态分别标注 HID++ / GANSS。
+- 最终 EXE：158,720 字节（155 KiB），相对 v0.1.0 增加 5 KiB。SHA-256：`D733B8BC4A135722D512E8364DB11936B9606C9D12B14A44D7BC8D80EE507CA8`。
+- 最终进程工作集 10.45 MiB、私有内存 1.98 MiB；15 秒空闲采样 CPU 时间增量 0 ms。不是长期绝对零 CPU 的承诺。
+- 最后一次重启后图标注册 2/2；该次快照中两台已休眠，均显示未知，分别识别为 GANSS / HID++。
+- 单实例验证通过；字体注册表值仍为 6（Times New Roman）；登录自启路径仍为 `"E:\PythonProject\BatteryIndicator\bin\BatteryIndicator.exe"`。
+- `--supported` 正常生成内置清单；`--status` 正常附带协议名称。程序已恢复后台运行，没有执行完整 Windows 重启或自动点击菜单的 UI 验证。
+- 功能验证完成后，按用户要求整理为 v0.2.0 版本；具体提交与标签以仓库 Git 记录为准。
+- 继续收尾时再次验证：运行状态命令退出码 0，托盘图标注册 2/2；当时高斯为 92% [GANSS]、罗技 PRO X Wireless 为 33% [HID++]；字体仍为 6，自启路径不变。测试执行程序、诊断快照及旧版 EXE 备份已清理，最终 EXE 指纹不变。工作区中的既有暂存内容和新增许可证文件未改动。
+
+亮粉色更新（历史版本）：普通电量数字为 `#FF2D95`，保留低电量红色、充电绿色和未知灰色。编译及全部测试通过，已重启并更新便携包。该版本 EXE SHA-256：`0157AA4DDAAE0AB51FDE1FF3DD26CAF52CA547A6F9D010B60CE5FBD2720EC690`。
 
 字体改进版本的验证记录（配色更新前）：
 

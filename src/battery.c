@@ -9,6 +9,8 @@
 #include <wchar.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <initguid.h>
+#include <devpkey.h>
 
 #define MAX_DEV 32
 #define WM_RESULT (WM_APP+1)
@@ -16,7 +18,7 @@
 #define WM_STATUS (WM_APP+3)
 #define WM_REFRESH (WM_APP+4)
 #define INTERVAL 120000
-typedef struct { WCHAR key[512], name[128]; int percent, charging, approximate; } Battery;
+typedef struct { WCHAR key[512], name[128]; int percent, charging, approximate; WCHAR protocol[24]; } Battery;
 typedef struct { Battery items[MAX_DEV]; int count; } Snapshot;
 static HWND window;
 static HANDLE stopEvent, refreshEvent, worker;
@@ -181,6 +183,7 @@ static BOOL standardBattery(HANDLE h,PHIDP_PREPARSED_DATA pp,HIDP_CAPS *caps,con
     }
     return FALSE;
 }
+#include "protocols.h"
 static void scan(Snapshot *s) {
     GUID guid; HidD_GetHidGuid(&guid);
     HDEVINFO list=SetupDiGetClassDevsW(&guid,NULL,NULL,DIGCF_PRESENT|DIGCF_DEVICEINTERFACE);
@@ -191,7 +194,8 @@ static void scan(Snapshot *s) {
         DWORD size=0; SetupDiGetDeviceInterfaceDetailW(list,&iface,NULL,0,&size,NULL);
         PSP_DEVICE_INTERFACE_DETAIL_DATA_W detail=HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,size);
         if(!detail) continue; detail->cbSize=sizeof(*detail);
-        if(!SetupDiGetDeviceInterfaceDetailW(list,&iface,detail,size,NULL,NULL)) { HeapFree(GetProcessHeap(),0,detail); continue; }
+        SP_DEVINFO_DATA node={0};node.cbSize=sizeof(node);
+        if(!SetupDiGetDeviceInterfaceDetailW(list,&iface,detail,size,NULL,&node)) { HeapFree(GetProcessHeap(),0,detail); continue; }
         HANDLE h=CreateFileW(detail->DevicePath,0,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
         if(h!=INVALID_HANDLE_VALUE) {
             HIDD_ATTRIBUTES attr={0};attr.Size=sizeof(attr); PHIDP_PREPARSED_DATA pp=NULL;HIDP_CAPS caps;
@@ -199,23 +203,13 @@ static void scan(Snapshot *s) {
             if(HidD_GetAttributes(h,&attr) && HidD_GetPreparsedData(h,&pp)) {
                 if(HidP_GetCaps(pp,&caps)==HIDP_STATUS_SUCCESS) {
                     logline(L"VID=%04X PID=%04X product=%s usage=%04X:%04X in=%u out=%u feature=%u",attr.VendorID,attr.ProductID,name,caps.UsagePage,caps.Usage,caps.InputReportByteLength,caps.OutputReportByteLength,caps.FeatureReportByteLength);
-                    BOOL got=standardBattery(h,pp,&caps,detail->DevicePath,name,s);
-                    if(attr.VendorID==0x05ac && attr.ProductID==0x024f && wcsstr(name,L"GS3104T-PRO") && caps.UsagePage==0xff60 && caps.Usage==0x61) {
-                        HANDLE rw=CreateFileW(detail->DevicePath,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,NULL);
-                        if(rw!=INVALID_HANDLE_VALUE) {got=ganss(rw,&caps,name,s);CloseHandle(rw);}
+                    WCHAR containerKey[128];GUID container;const GUID emptyContainer={0};DEVPROPTYPE propertyType;
+                    const WCHAR *key=detail->DevicePath;
+                    if(SetupDiGetDevicePropertyW(list,&node,&DEVPKEY_Device_ContainerId,&propertyType,(BYTE*)&container,sizeof(container),NULL,0) && propertyType==DEVPROP_TYPE_GUID && !IsEqualGUID(&container,&emptyContainer)) {
+                        swprintf_s(containerKey,_countof(containerKey),L"%04X:%04X:%08lX-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",attr.VendorID,attr.ProductID,container.Data1,container.Data2,container.Data3,container.Data4[0],container.Data4[1],container.Data4[2],container.Data4[3],container.Data4[4],container.Data4[5],container.Data4[6],container.Data4[7]);key=containerKey;
                     }
-                    if(attr.VendorID==0x046d && caps.UsagePage==0xff00 && caps.Usage==2) {
-                        HANDLE rw=CreateFileW(detail->DevicePath,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,NULL);
-                        int before=s->count;
-                        if(rw!=INVALID_HANDLE_VALUE) { logitech(rw,&caps,detail->DevicePath,name,s); CloseHandle(rw); }
-                        if(before==s->count) add(s,detail->DevicePath,L"Logitech 接收器：设备休眠或无法读取",-1,0,0);
-                    } else if(!got && (wcsstr(name,L"GS3104") || wcsstr(name,L"2.4G") || wcsstr(name,L"GANSS"))) {
-                        WCHAR key[512]; wcsncpy_s(key,_countof(key),detail->DevicePath,_TRUNCATE);
-                        /* Deduplicate composite collections of this known keyboard. */
-                        if(wcsstr(name,L"GS3104")) wcscpy_s(key,_countof(key),L"GANSS-GS3104T-PRO");
-                        BOOL existing=FALSE;for(int j=0;j<s->count;j++) if(!wcscmp(s->items[j].key,key)) existing=TRUE;
-                        if(!existing) add(s,key,name,-1,0,0);
-                    }
+                    DeviceInfo device={attr,caps,pp,detail->DevicePath,name,key};
+                    dispatchBattery(h,&device,s);
                 }
                 HidD_FreePreparsedData(pp);
             }
@@ -288,7 +282,7 @@ static void showSnapshot(Snapshot *s) {
         Battery *b=&current.items[i]; NOTIFYICONDATAW *n=&icons[i]; memset(n,0,sizeof(*n));
         n->cbSize=sizeof(*n);n->hWnd=window;n->uID=i+1;n->uFlags=NIF_MESSAGE|NIF_ICON|NIF_TIP;n->uCallbackMessage=WM_TRAY;
         n->hIcon=makeIcon(b->percent,b->charging);
-        if(b->percent<0) _snwprintf_s(n->szTip,_countof(n->szTip),_TRUNCATE,L"%s\n电量无法读取 / 协议未适配",b->name);
+        if(b->percent<0) _snwprintf_s(n->szTip,_countof(n->szTip),_TRUNCATE,L"%s\n%s",b->name,!wcscmp(b->protocol,L"Unknown")?L"协议暂未支持":L"设备休眠、离线或暂时无法读取");
         else _snwprintf_s(n->szTip,_countof(n->szTip),_TRUNCATE,L"%s\n%s%d%%%s",b->name,b->approximate?L"约 ":L"",b->percent,b->charging?L" · 充电中":L"");
         if(Shell_NotifyIconW(NIM_ADD,n)) shellIcons++;
         iconCount++;
@@ -325,7 +319,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
         WCHAR path[MAX_PATH];sibling(path,L"status.txt");FILE *f=NULL;
         _wfopen_s(&f,path,L"w, ccs=UTF-8");
         if(f) {fwprintf(f,L"Tray icons registered: %d/%d\n",shellIcons,iconCount);
-            for(int i=0;i<current.count;i++) fwprintf(f,L"%s: %d%%\n",current.items[i].name,current.items[i].percent);
+            for(int i=0;i<current.count;i++) fwprintf(f,L"%s: %d%% [%s]\n",current.items[i].name,current.items[i].percent,current.items[i].protocol);
             fclose(f);
         }return 0;
     }
@@ -342,6 +336,11 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE prev,PWSTR cmd,int show) {
     (void)prev;(void)show;
     if(!wcscmp(cmd,L"--install")) return startup(TRUE,TRUE)==0?0:1;
     if(!wcscmp(cmd,L"--uninstall")) return startup(TRUE,FALSE)==0?0:1;
+    if(!wcscmp(cmd,L"--supported")) {
+        WCHAR path[MAX_PATH];sibling(path,L"supported.txt");FILE *f=NULL;_wfopen_s(&f,path,L"w, ccs=UTF-8");if(!f) return 1;
+        for(DWORD i=0;i<_countof(providers);i++) fwprintf(f,L"%s: %s\n",providers[i].name,providers[i].description);
+        fclose(f);return 0;
+    }
     if(!wcscmp(cmd,L"--stop")) { HWND old=FindWindowW(className,NULL);if(old) PostMessageW(old,WM_CLOSE,0,0);return 0; }
     if(!wcscmp(cmd,L"--status") || !wcscmp(cmd,L"--refresh")) {
         HWND old=FindWindowW(className,NULL);if(!old) return 1;
