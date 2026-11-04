@@ -1,5 +1,7 @@
 # BatteryIndicator
 
+> **仅限非商业用途，禁止商用。** 本项目原创部分采用 [PolyForm Noncommercial 1.0.0](LICENSE)，详见[中文使用许可说明](LICENSE.zh-CN.md)；第三方材料保留原许可。
+
 Windows 10/11 x64 的轻量外设电量托盘程序，使用 C 和 Windows 自带 API。
 
 当前版本：**v0.1.0**。版本号见 [VERSION](VERSION)，版本变更见 [CHANGELOG.md](CHANGELOG.md)。
