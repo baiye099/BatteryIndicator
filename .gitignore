@@ -1,0 +1,12 @@
+/bin/*.obj
+/bin/protocol_test.exe
+/bin/font_preview.exe
+/bin/font-preview.bmp
+/bin/font-preview.png
+/bin/diagnostics.txt
+/bin/status.txt
+/research/
+/ganss-web.html
+/.idea/
+/dist/
+/BatteryIndicator-portable.zip
