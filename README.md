@@ -4,7 +4,7 @@
 
 Windows 10/11 x64 的轻量外设电量托盘程序，使用 C 和 Windows 自带 API。
 
-当前版本：**v0.2.0**。版本号见 [VERSION](VERSION)，版本变更见 [CHANGELOG.md](CHANGELOG.md)，本版功能、验证范围和更新方式见 [v0.2.0 版本说明](RELEASE_NOTES_v0.2.0.md)。
+当前版本：**v0.2.0**。版本号见 [VERSION](VERSION)，版本变更见 [CHANGELOG.md](CHANGELOG.md)，本版功能、实现流程、验证范围和更新方式见 [v0.2.0 版本说明与实现流程](BatteryIndicator_v0.2.0_版本说明与实现流程.md)。
 
 自动扫描设备并选择内置电量协议，用户无需下载或上传配置文件。实现与支持范围见 [统一自动识别说明](AUTO_DETECTION.md)。
 
